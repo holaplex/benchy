@@ -45,7 +45,7 @@ pub async fn execute(hub: &HubClient) -> Result<CollectionMint> {
         .await?;
 
     let res_plain = response.text().await?;
-    info!("{res_plain}");
+    debug!("{res_plain}");
     let res: GraphQLResponse<MintResponse> = serde_json::from_str(&res_plain)?;
 
     if let Some(errors) = res.errors {

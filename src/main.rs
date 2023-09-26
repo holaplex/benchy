@@ -39,8 +39,9 @@ async fn main() -> Result<()> {
     Config::load(&cli.global.config)?;
     let cfg = Config::read();
     let settings = Settings::merge(cfg.settings.clone(), &cli.clone());
+    let level = settings.log_level.clone().unwrap();
     let logger =
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).build();
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(&level)).build();
     let multi = MultiProgress::new();
     LogWrapper::new(multi.clone(), logger).try_init().unwrap();
     let hub = HubClient::new(&cfg.hub)?;
@@ -53,14 +54,17 @@ async fn run(hub: HubClient, s: &Settings, m: MultiProgress) -> Result<()> {
 
     let total_mints = s.iterations.unwrap() * s.parallelism.unwrap();
 
-    let pbs = pbs::init(&m, total_mints).await;
+    let pbs = pbs::init(&m, total_mints, s.retry.unwrap_or_default()).await;
 
     let mints = mint(&hub, s, &semaphore, &pbs["mints"]).await?;
     pbs["mints"].finish_with_message("All mint requests sent!");
-    info!("Waiting 10 seconds before starting mint status verification");
-    tokio::time::sleep(Duration::from_millis(10000)).await;
 
-    let records = verify(&hub, &mints, &pbs).await;
+    if s.iterations.unwrap() < 2 {
+        info!("Waiting 10 seconds before starting mint status verification");
+        tokio::time::sleep(Duration::from_millis(10000)).await;
+    };
+
+    let records = verify(&hub, &mints, s.retry.unwrap_or_default(), &pbs).await;
 
     pbs::finalize(&pbs["successful"], &records).await;
 
@@ -110,6 +114,7 @@ async fn handle_mint(
     hub: &HubClient,
     mint_id: Uuid,
     state: &mut MintState,
+    retry: bool,
     pbs: &HashMap<&'static str, ProgressBar>,
 ) -> Option<Record> {
     match mint::check_status(hub, mint_id).await {
@@ -125,11 +130,13 @@ async fn handle_mint(
             },
             CreationStatus::FAILED => {
                 pbs["failed"].inc(1);
-                let _ = mint::retry(hub, mint_id).await;
-                info!("Retrying mint {} due to FAILED status", mint_id);
-                state.retry_count += 1;
-                state.last_pending_time = Instant::now();
-                pbs["retries"].inc(1);
+                if retry {
+                    let _ = mint::retry(hub, mint_id).await;
+                    info!("Retrying mint {} due to FAILED status", mint_id);
+                    state.retry_count += 1;
+                    state.last_pending_time = Instant::now();
+                    pbs["retries"].inc(1);
+                }
                 None
             },
             _ => None,
@@ -144,6 +151,7 @@ async fn handle_mint(
 async fn verify(
     hub: &HubClient,
     mints: &HashMap<Uuid, Instant>,
+    retry: bool,
     pbs: &HashMap<&'static str, ProgressBar>,
 ) -> Vec<Record> {
     let mut records = Vec::new();
@@ -178,7 +186,7 @@ async fn verify(
                     success: false,
                 });
                 to_remove.push(mint_id);
-            } else if let Some(record) = handle_mint(hub, mint_id, state, pbs).await {
+            } else if let Some(record) = handle_mint(hub, mint_id, state, retry, pbs).await {
                 records.push(record);
                 to_remove.push(mint_id);
             }

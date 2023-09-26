@@ -17,6 +17,8 @@ pub struct Settings {
     pub parallelism: Option<usize>,
     pub iterations: Option<usize>,
     pub delay: Option<u64>,
+    pub retry: Option<bool>,
+    pub log_level: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct Hub {
@@ -67,13 +69,13 @@ impl Config {
 
 impl Settings {
     pub fn merge(self, cli: &crate::Opt) -> Self {
-        let mut settings = self.clone();
+        let mut settings = self;
+        let cmd = cli.cmd.clone();
 
-        if let Some(cmd) = &cli.cmd {
-            settings.parallelism = settings.parallelism.or(Some(cmd.parallelism));
-            settings.iterations = settings.iterations.or(Some(cmd.iterations));
-            settings.delay = settings.delay.or(Some(cmd.delay));
-        }
+        settings.parallelism = Some(cmd.parallelism).or(settings.parallelism);
+        settings.iterations = Some(cmd.iterations).or(settings.iterations);
+        settings.delay = Some(cmd.delay).or(settings.delay);
+        settings.retry = Some(cmd.retry).or(settings.retry);
         settings
     }
 }

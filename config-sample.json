@@ -6,7 +6,9 @@
   "settings": {
     "iterations": 5,
     "parallelism": 10,
-    "delay": 10
+    "delay": 10,
+    "retry": false,
+    "log_level": "debug"
   },
   "mint": {
     "collection_id": "2d08ac69-211e-4538-805b-cc441663cc06",

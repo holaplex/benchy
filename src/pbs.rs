@@ -4,7 +4,11 @@ pub use indicatif::{MultiProgress, ProgressBar, ProgressState, ProgressStyle};
 
 use crate::Record;
 
-pub async fn init(m: &MultiProgress, total_mints: usize) -> HashMap<&'static str, ProgressBar> {
+pub async fn init(
+    m: &MultiProgress,
+    total_mints: usize,
+    retry: bool,
+) -> HashMap<&'static str, ProgressBar> {
     let style = ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] ({pos}/{len} {msg}, ETA {eta})")
         .unwrap()
         .with_key("eta", |state: &ProgressState, w: &mut dyn Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
@@ -33,14 +37,18 @@ pub async fn init(m: &MultiProgress, total_mints: usize) -> HashMap<&'static str
     pb3.set_message("failed mints");
     progress_bars.insert("failed", pb3);
 
-    let pb4 = m.insert_after(
-        &progress_bars["failed"],
-        ProgressBar::new(total_mints as u64),
-    );
-    pb4.set_style(style.clone());
-    pb4.set_message("retries");
-    progress_bars.insert("retries", pb4);
-
+    if retry {
+        let pb4 = m.insert_after(
+            &progress_bars["failed"],
+            ProgressBar::new(total_mints as u64),
+        );
+        pb4.set_style(style.clone());
+        pb4.set_message("retries");
+        progress_bars.insert("retries", pb4);
+    }
+    for i in progress_bars.iter() {
+        i.1.tick();
+    }
     progress_bars
 }
 

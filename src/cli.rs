@@ -7,8 +7,9 @@ use structopt::StructOpt;
 pub struct Opt {
     #[structopt(flatten)]
     pub global: GlobalOptions,
-    #[structopt(subcommand)]
-    pub cmd: Option<Cli>,
+
+    #[structopt(flatten)]
+    pub cmd: Cli,
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -23,6 +24,7 @@ pub struct GlobalOptions {
     )]
     pub config: PathBuf,
 }
+
 #[derive(StructOpt, Debug, Default, Clone)]
 pub struct Cli {
     /// Number of concurrent requests
@@ -33,7 +35,11 @@ pub struct Cli {
     #[structopt(short, long, default_value = "1")]
     pub iterations: usize,
 
-    /// Wait Delay in ms between each run
+    /// Wait Delay in seconds between each iteration
     #[structopt(short, long, default_value = "1")]
     pub delay: u64,
+
+    /// Wait Delay in seconds between each iteration
+    #[structopt(short, long)]
+    pub retry: bool,
 }
