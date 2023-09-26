@@ -1,8 +1,10 @@
-use crate::{config::Config, graphql::*, HubClient};
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
 use log::{debug, error, info};
-use std::str::FromStr;
 use uuid::Uuid;
+
+use crate::{config::Config, graphql::*, HubClient};
 
 pub async fn execute(hub: &HubClient) -> Result<CollectionMint> {
     let config = Config::read();
@@ -127,7 +129,7 @@ pub async fn check_status(hub: &HubClient, id: Uuid) -> Result<MintData> {
             error!("{}", res_plain);
             let messages: Vec<_> = errors.iter().map(|e| &e.message).collect();
             Err(anyhow!("GraphQL Errors: {:?}", messages))
-        }
+        },
         GraphQLResponse {
             data: Some(data), ..
         } => {
@@ -140,10 +142,10 @@ pub async fn check_status(hub: &HubClient, id: Uuid) -> Result<MintData> {
                 info!("Mint {} created successfully", cm.id)
             };
             Ok(cm)
-        }
+        },
         _ => {
             error!("Data is missing from the response");
             Err(anyhow!("Data is missing from the response"))
-        }
+        },
     }
 }

@@ -1,9 +1,8 @@
 pub use graphql_client::GraphQLQuery;
+pub use mint_status::CreationStatus;
 pub use mint_to_collection::*;
 pub use retry_mint_to_collection::*;
 use serde::{Deserialize, Serialize};
-
-pub use mint_status::CreationStatus;
 
 #[allow(clippy::upper_case_acronyms)]
 pub type UUID = uuid::Uuid;

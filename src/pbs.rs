@@ -1,8 +1,8 @@
-use crate::Record;
-pub use indicatif::{MultiProgress, ProgressBar, ProgressState, ProgressStyle};
-use std::fmt::Write;
+use std::{collections::HashMap, fmt::Write};
 
-use std::collections::HashMap;
+pub use indicatif::{MultiProgress, ProgressBar, ProgressState, ProgressStyle};
+
+use crate::Record;
 
 pub async fn init(m: &MultiProgress, total_mints: usize) -> HashMap<&'static str, ProgressBar> {
     let style = ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] ({pos}/{len} {msg}, ETA {eta})")

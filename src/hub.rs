@@ -1,6 +1,7 @@
-use crate::config::Hub;
 use anyhow::Result;
 use reqwest::{header, Client};
+
+use crate::config::Hub;
 
 #[derive(Clone)]
 pub struct HubClient {

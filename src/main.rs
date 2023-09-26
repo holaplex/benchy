@@ -1,3 +1,14 @@
+use std::{collections::HashMap, fs::File, str::FromStr, sync::Arc, time::Instant};
+
+use anyhow::Result;
+use futures::stream::{FuturesUnordered, StreamExt};
+use graphql::CreationStatus;
+use indicatif_log_bridge::LogWrapper;
+use log::{error, info};
+use structopt::StructOpt;
+use tokio::{sync::Semaphore, time::Duration};
+use uuid::Uuid;
+
 use crate::{
     cli::Opt,
     config::{Config, Settings},
@@ -5,15 +16,6 @@ use crate::{
     hub::HubClient,
     pbs::{MultiProgress, ProgressBar},
 };
-use anyhow::Result;
-use futures::stream::{FuturesUnordered, StreamExt};
-use graphql::CreationStatus;
-use indicatif_log_bridge::LogWrapper;
-use log::{error, info};
-use std::{collections::HashMap, fs::File, str::FromStr, sync::Arc, time::Instant};
-use structopt::StructOpt;
-use tokio::{sync::Semaphore, time::Duration};
-use uuid::Uuid;
 
 mod cli;
 mod config;
@@ -120,7 +122,7 @@ async fn handle_mint(
                     retry_count: state.retry_count,
                     success: true,
                 })
-            }
+            },
             CreationStatus::FAILED => {
                 pbs["failed"].inc(1);
                 let _ = mint::retry(hub, mint_id).await;
@@ -129,13 +131,13 @@ async fn handle_mint(
                 state.last_pending_time = Instant::now();
                 pbs["retries"].inc(1);
                 None
-            }
+            },
             _ => None,
         },
         Err(e) => {
             error!("Failed to verify mint {}: {:?}", mint_id, e);
             None
-        }
+        },
     }
 }
 
@@ -151,14 +153,11 @@ async fn verify(
     let mut pending_states: HashMap<Uuid, MintState> = mints
         .iter()
         .map(|(id, &time)| {
-            (
-                *id,
-                MintState {
-                    start_time: time,
-                    last_pending_time: time,
-                    retry_count: 0,
-                },
-            )
+            (*id, MintState {
+                start_time: time,
+                last_pending_time: time,
+                retry_count: 0,
+            })
         })
         .collect();
 

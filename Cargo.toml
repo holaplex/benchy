@@ -1,7 +1,17 @@
 [package]
 name = "benchy"
 version = "0.1.0"
+publish = false
+authors = [
+  "Holaplex <engineering@holaplex.com>",
+]
 edition = "2021"
+description = "CLI tool to benchmark Hub mint API"
+readme = "./README.md"
+repository = "https://github.com/holaplex/benchy"
+license = "AGPL-3.0-or-later"
+keywords = ["hub", "holaplex", "web3", "cli", "benchmark", "mint", "compressed"]
+categories = ["cryptography::cryptocurrencies", "web-programming"]
 
 [dependencies]
 graphql_client = { version = "0.13.0", features = ["reqwest"] }
