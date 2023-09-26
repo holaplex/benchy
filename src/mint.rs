@@ -1,10 +1,17 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
 use anyhow::{anyhow, Result};
 use log::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{config::Config, graphql::*, HubClient};
+
+#[derive(Clone)]
+pub struct State {
+    pub start_time: Instant,
+    pub last_pending_time: Instant,
+    pub retry_count: u64,
+}
 
 pub async fn execute(hub: &HubClient) -> Result<CollectionMint> {
     let config = Config::read();
@@ -37,38 +44,25 @@ pub async fn execute(hub: &HubClient) -> Result<CollectionMint> {
         },
     });
 
-    let response = hub
+    let res_plain = hub
         .client
         .post(hub.url.clone())
         .json(&mutation)
         .send()
+        .await?
+        .text()
         .await?;
 
-    let res_plain = response.text().await?;
-    debug!("{res_plain}");
-    let res: GraphQLResponse<MintResponse> = serde_json::from_str(&res_plain)?;
-
-    if let Some(errors) = res.errors {
-        let messages: Vec<_> = errors.iter().map(|e| &e.message).collect();
-        error!("{}", res_plain);
-        return Err(anyhow!("GraphQL Errors: {:?}", messages));
-    }
-
-    let data = if let Some(data) = res.data {
+    process_response(&res_plain, |data: MintResponse| {
         let cm = data.mint_to_collection.collection_mint.clone();
         info!(
             "Mint req sent successfully: MintID: {} -- Status: {}",
             cm.id, cm.creation_status
         );
-        data
-    } else {
-        error!("Data is missing from the response");
-        return Err(anyhow!("Data is missing from the response"));
-    };
-
-    Ok(CollectionMint {
-        id: data.mint_to_collection.collection_mint.id,
-        creation_status: data.mint_to_collection.collection_mint.creation_status,
+        Ok(CollectionMint {
+            id: cm.id,
+            creation_status: cm.creation_status,
+        })
     })
 }
 
@@ -76,76 +70,75 @@ pub async fn retry(hub: &HubClient, id: Uuid) -> Result<CollectionMint> {
     let mutation = RetryMintToCollection::build_query(retry_mint_to_collection::Variables {
         input: RetryMintEditionInput { id },
     });
-
-    let response = hub
+    let res_plain = hub
         .client
         .post(hub.url.clone())
         .json(&mutation)
         .send()
+        .await?
+        .text()
         .await?;
 
-    let res_plain = response.text().await?;
-    let res: GraphQLResponse<RetryMintResponse> = serde_json::from_str(&res_plain)?;
-
-    if let Some(errors) = res.errors {
-        let messages: Vec<_> = errors.iter().map(|e| &e.message).collect();
-        error!("{}", res_plain);
-        return Err(anyhow!("GraphQL Errors: {:?}", messages));
-    }
-
-    let data = if let Some(data) = res.data {
+    process_response(&res_plain, |data: RetryMintResponse| {
         let cm = data.retry_mint_to_collection.collection_mint.clone();
         info!(
             "Retry Mint req sent successfully: MintID: {} -- Status: {}",
             cm.id, cm.creation_status
         );
-        data
-    } else {
-        error!("Data is missing from the response");
-        return Err(anyhow!("Data is missing from the response"));
-    };
-
-    Ok(CollectionMint {
-        id: data.retry_mint_to_collection.collection_mint.id,
-        creation_status: data
-            .retry_mint_to_collection
-            .collection_mint
-            .creation_status,
+        Ok(CollectionMint {
+            id: cm.id,
+            creation_status: cm.creation_status,
+        })
     })
 }
 
 pub async fn check_status(hub: &HubClient, id: Uuid) -> Result<MintData> {
     let query = MintStatus::build_query(mint_status::Variables { id });
+    let res_plain = hub
+        .client
+        .post(hub.url.clone())
+        .json(&query)
+        .send()
+        .await?
+        .text()
+        .await?;
 
-    let response = hub.client.post(hub.url.clone()).json(&query).send().await?;
-    let res_plain = response.text().await?;
-    let res: GraphQLResponse<MintStatusResponse> = serde_json::from_str(&res_plain)?;
+    process_response(&res_plain, |data: MintStatusResponse| {
+        let cm = data.mint;
+        debug!(
+            "Checking status of mint {} -- Status: {:?}",
+            cm.id, cm.creation_status
+        );
+        if cm.creation_status == CreationStatus::CREATED {
+            info!("Mint {} created successfully", cm.id);
+        }
+        Ok(cm)
+    })
+}
 
-    match res {
-        GraphQLResponse {
+fn process_response<T, R>(res_plain: &str, on_success: impl FnOnce(T) -> Result<R>) -> Result<R>
+where
+    T: serde::de::DeserializeOwned,
+{
+    match serde_json::from_str::<GraphQLResponse<T>>(res_plain) {
+        Ok(GraphQLResponse {
             errors: Some(errors),
             ..
-        } => {
+        }) => {
             error!("{}", res_plain);
             let messages: Vec<_> = errors.iter().map(|e| &e.message).collect();
             Err(anyhow!("GraphQL Errors: {:?}", messages))
         },
-        GraphQLResponse {
+        Ok(GraphQLResponse {
             data: Some(data), ..
-        } => {
-            let cm = data.mint.clone();
-            debug!(
-                "Checking status of mint {} -- Status: {:?}",
-                cm.id, cm.creation_status
+        }) => on_success(data),
+        Ok(_) | Err(_) => {
+            let e = format!(
+                "Unable to parse response. Operation failed with error: {}",
+                res_plain
             );
-            if cm.creation_status == CreationStatus::CREATED {
-                info!("Mint {} created successfully", cm.id)
-            };
-            Ok(cm)
-        },
-        _ => {
-            error!("Data is missing from the response");
-            Err(anyhow!("Data is missing from the response"))
+            error!("{e}");
+            Err(anyhow!("{e}"))
         },
     }
 }

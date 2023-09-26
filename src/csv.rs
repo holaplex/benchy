@@ -7,4 +7,5 @@ pub struct Record {
     pub completion_sec: u64,
     pub retry_count: u64,
     pub success: bool,
+    pub reason: String,
 }

@@ -23,6 +23,15 @@ pub struct GlobalOptions {
         parse(from_os_str)
     )]
     pub config: PathBuf,
+    #[structopt(
+        long,
+        global = true,
+        help = "CSV report output path",
+        default_value = "./output.csv",
+        env = "OUTPUT_PATH",
+        parse(from_os_str)
+    )]
+    pub output: PathBuf,
 }
 
 #[derive(StructOpt, Debug, Default, Clone)]

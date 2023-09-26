@@ -19,6 +19,8 @@ pub struct Settings {
     pub delay: Option<u64>,
     pub retry: Option<bool>,
     pub log_level: Option<String>,
+    pub timeout: Option<u64>,
+    pub retry_delay: Option<u64>,
 }
 #[derive(Debug, Deserialize)]
 pub struct Hub {
