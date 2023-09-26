@@ -1,0 +1,22 @@
+{
+  "hub": {
+    "url": "https://api.holaplex.dev/graphql",
+    "token": "your-api-token"
+  },
+  "settings": {
+    "iterations": 5,
+    "parallelism": 10,
+    "delay": 10
+  },
+  "mint": {
+    "collection_id": "2d08ac69-211e-4538-805b-cc441663cc06",
+    "compressed": true,
+    "recipient": "EddYHALSPtgyPjjUmUrsBbgrfqUz6r8p61NKRhj3QPn3",
+    "creator": {
+      "address": "85hTMePU4zqLpc8kpcuQp5fSh6XquXezXgxoTa6JWUxB",
+      "verified": true
+    },
+    "description": "Benchmark test",
+    "image": "https://ipfs.io/ipfs/bafkreid3hawysa4pi5wlfdzrzzps7fw7s5xi3shiqyzqtnd4u3257s7q6q"
+  }
+}
