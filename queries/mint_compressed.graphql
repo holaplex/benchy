@@ -1,0 +1,8 @@
+mutation MintToCollection($input: MintToCollectionInput!) {
+    mintToCollection(input: $input) {
+      collectionMint {
+        id
+        creationStatus
+      }
+    }
+  }

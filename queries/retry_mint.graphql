@@ -1,0 +1,8 @@
+mutation RetryMintToCollection($input: RetryMintEditionInput!) {
+    retryMintToCollection(input: $input) {
+      collectionMint {
+        id
+        creationStatus
+      }
+    }
+  }
